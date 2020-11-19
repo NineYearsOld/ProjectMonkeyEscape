@@ -8,21 +8,15 @@ namespace ProjectMonkey
     {
         public int treeX { get; set; }
         public int treeY { get; set; }
-        public string treeTag { get; set; }
+        public int treeTag { get; set; }
         public bool visited { get; set; }
 
-        public Tree(int x, int y)
+        public Tree(int x, int y, int TreeTag)
         {
+            this.treeTag = TreeTag;
             this.treeX = x;
             this.treeY = y;
-            this.treeTag = generateTreeId();
             this.visited = false;
-        }
-
-        public string generateTreeId()
-        {
-            string id = "T" + Guid.NewGuid().ToString();
-            return id;
         }
 
     }

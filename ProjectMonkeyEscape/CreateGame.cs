@@ -10,9 +10,9 @@ using System.Threading.Tasks;
 
 namespace ProjectMonkey
 {
-    class CreateGame
+    public class CreateGame
     {
-        Grove grove = new Grove(1920, 1080);
+        public Grove grove = new Grove(1920, 1080);
         List<Tree> trees = new List<Tree>();
         Dictionary<string, Tree> treeRepository = new Dictionary<string, Tree>();
         List<Monkey> monkeys = new List<Monkey>();
@@ -32,14 +32,18 @@ namespace ProjectMonkey
 
         void PopulateGroveWithTrees()
         {
-            int numberOfTrees = (grove.groveLength * grove.groveWidth) / 250;
+            int numberOfTrees = (grove.groveLength * grove.groveWidth) / 5000;
+            int treeTag = 0;
+
             while (trees.Count < numberOfTrees)
             {
                 int x = random.Next(grove.groveWidth);
                 int y = random.Next(grove.groveLength);
-                Tree tree = new Tree(x, y);
+                Tree tree = new Tree(x, y, treeTag);
                 trees.Add(tree);
+                treeTag++;    
             }
+
             List<int> dupVal = new List<int>();
             for (int i = 0; i < trees.Count; i++)
             {
@@ -68,21 +72,33 @@ namespace ProjectMonkey
 
         void SetMonkeysLoose()
         {
-            int numberOfTrees = trees.Count;
-            double distance = 0;
-            bool abord = false;
+            int treeCount = trees.Count;
+            List<Task> tasks = new List<Task>();
 
-            foreach (Monkey rogueMonkey in monkeys)
+            foreach (Monkey monkey in monkeys)
             {
+                tasks.Add(SetMonkeyStart(monkey, treeCount));
+            }
+            Task.WaitAll(tasks.ToArray());
+
+        }
+
+        private Task SetMonkeyStart(Monkey rogueMonkey, int treeCount)
+        {
+            DbControl db = new DbControl();
+            return Task.Factory.StartNew(() =>
+            {
+                double distance = 0;
+
                 List<int> indexes = new List<int>();
                 while (rogueMonkey.isEscaped == false)
                 {
-                    Monkey monkeyRecord = new Monkey("", 0, 0, "");
+                    Monkey monkeyRecord = new Monkey(0, 0, 0, "");
                     double shortestPath = 0;
                     int currentTreeIndex = 0;
                     bool start = true;
 
-                    for (int i = 0; i < numberOfTrees; i++)
+                    for (int i = 0; i < treeCount; i++)
                     {
                         distance = CalculateDistance(rogueMonkey.monkeyX, trees[i].treeX, rogueMonkey.monkeyY, trees[i].treeY);
 
@@ -107,7 +123,6 @@ namespace ProjectMonkey
                         if (currentTreeIndex == lastIndex)
                         {
                             Console.WriteLine($"{rogueMonkey.monkeyName} is trapped, awaits firefighters");
-                            abord = true;
                             break;
                         }
 
@@ -152,14 +167,12 @@ namespace ProjectMonkey
                         Console.WriteLine($"{rogueMonkey.monkeyName} escaped!");
                     }
 
+                db.UploadMonkeyData(rogueMonkey, grove, 0);
                 }
-                if (abord)
-                {
-                    continue;
-                }
-            }
 
+            });
         }
+
 
         double CalculateDistance(int x1, int x2, int y1, int y2)
         {
@@ -188,30 +201,31 @@ namespace ProjectMonkey
                 }
                 for (int i = 0; i < monkeyNames.Length; i++)
                 {
-                    Pen randomColor = new Pen(Color.FromArgb(color.Next(0, 255), color.Next(0, 255), color.Next(0, 255)),4);
+                    Pen randomColor = new Pen(Color.FromArgb(color.Next(0, 255), color.Next(0, 255), color.Next(0, 255)), 4);
                     int launcher = 1;
-                    var ape = monkeyPaths.Where(a => a.monkeyName == monkeyNames[i]);
-                    foreach (var primate in ape)
+                    var path = monkeyPaths.Where(a => a.monkeyName == monkeyNames[i]);
+                    foreach (var ape in path)
                     {
-                        graph.DrawEllipse(randomColor, primate.monkeyX - 3, primate.monkeyY - 3, 6, 6);
-    
+
                         if (launcher == 1)
                         {
-                            x1 = primate.monkeyX;
-                            y1 = primate.monkeyY;
+                            x1 = ape.monkeyX;
+                            y1 = ape.monkeyY;
                             launcher++;
                         }
                         if (launcher == 2)
                         {
-                            x2 = primate.monkeyX;
-                            y2 = primate.monkeyY;
+                            x2 = ape.monkeyX;
+                            y2 = ape.monkeyY;
                             launcher = 2;
                             graph.DrawLine(randomColor, x1, y1, x2, y2);
                             x1 = x2;
                             y1 = y2;
                         }
                     }
+                    graph.DrawEllipse(randomColor, path.First().monkeyX - 3, path.First().monkeyY - 3, 6, 6);
                 }
+
 
             }
             bitmap.Save(Path.Combine(path, grove.GroveTag + "_escapeRoutes.jpg"), ImageFormat.Jpeg);
